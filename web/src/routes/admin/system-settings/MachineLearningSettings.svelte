@@ -1,10 +1,16 @@
 <script lang="ts">
   import SettingAccordion from '$lib/components/shared-components/settings/SettingAccordion.svelte';
   import SettingInputField from '$lib/components/shared-components/settings/SettingInputField.svelte';
-  import SettingSelect from './SettingSelect.svelte';
+  import SettingCombobox from './SettingCombobox.svelte';
   import SettingSwitch from '$lib/components/shared-components/settings/SettingSwitch.svelte';
   import SettingButtonsRow from '$lib/components/shared-components/settings/SystemConfigButtonRow.svelte';
-  import { SettingInputFieldType } from '$lib/constants';
+  import type { ComboBoxOption } from '$lib/components/shared-components/Combobox.svelte';
+  import {
+    machineLearningClipModelOptions,
+    machineLearningFacialRecognitionModelOptions,
+    machineLearningOcrModelOptions,
+    SettingInputFieldType,
+  } from '$lib/constants';
   import FormatMessage from '$lib/elements/FormatMessage.svelte';
   import { featureFlagsManager } from '$lib/managers/feature-flags-manager.svelte';
   import { systemConfigManager } from '$lib/managers/system-config-manager.svelte';
@@ -17,6 +23,14 @@
   const disabled = $derived(featureFlagsManager.value.configFile);
   const config = $derived(systemConfigManager.value);
   let configToEdit = $state(systemConfigManager.cloneValue());
+
+  let clipModelOptions = $state<ComboBoxOption[]>(machineLearningClipModelOptions);
+  let facialRecognitionModelOptions = $state<ComboBoxOption[]>(machineLearningFacialRecognitionModelOptions);
+  let ocrModelOptions = $state<ComboBoxOption[]>(machineLearningOcrModelOptions);
+
+  const getSelectedModelOption = (options: ComboBoxOption[], value: string): ComboBoxOption | undefined => {
+    return options.find((option) => option.value === value) ?? (value ? { label: value, value } : undefined);
+  };
 </script>
 
 <div class="mt-2">
@@ -124,24 +138,28 @@
 
           <hr />
 
-          <SettingInputField
-            inputType={SettingInputFieldType.TEXT}
-            label={$t('admin.machine_learning_clip_model')}
-            bind:value={configToEdit.machineLearning.clip.modelName}
-            required={true}
+          <SettingCombobox
+            title={$t('admin.machine_learning_clip_model')}
+            subtitle={'Search the supported CLIP models by name, size, or capability. You can also type any custom model name.'}
+            comboboxPlaceholder={'Search or enter a CLIP model name'}
+            selectedOption={getSelectedModelOption(clipModelOptions, configToEdit.machineLearning.clip.modelName)}
+            options={clipModelOptions}
+            allowCreate={true}
+            defaultFirstOption={true}
             disabled={disabled || !configToEdit.machineLearning.enabled || !configToEdit.machineLearning.clip.enabled}
+            onSelect={(option) => {
+              configToEdit.machineLearning.clip.modelName = option?.value ?? '';
+            }}
             isEdited={configToEdit.machineLearning.clip.modelName !== config.machineLearning.clip.modelName}
-          >
-            {#snippet descriptionSnippet()}
-              <p class="pb-2 text-sm immich-form-label">
-                <FormatMessage key="admin.machine_learning_clip_model_description">
-                  {#snippet children({ message })}
-                    <a target="_blank" href="https://huggingface.co/immich-app"><u>{message}</u></a>
-                  {/snippet}
-                </FormatMessage>
-              </p>
-            {/snippet}
-          </SettingInputField>
+          />
+
+          <p class="pb-2 text-sm immich-form-label">
+            <FormatMessage key="admin.machine_learning_clip_model_description">
+              {#snippet children({ message })}
+                <a target="_blank" href="https://huggingface.co/immich-app"><u>{message}</u></a>
+              {/snippet}
+            </FormatMessage>
+          </p>
         </div>
       </SettingAccordion>
 
@@ -190,20 +208,23 @@
 
           <hr />
 
-          <SettingSelect
-            label={$t('admin.machine_learning_facial_recognition_model')}
-            desc={$t('admin.machine_learning_facial_recognition_model_description')}
-            name="facial-recognition-model"
-            bind:value={configToEdit.machineLearning.facialRecognition.modelName}
-            options={[
-              { value: 'antelopev2', text: 'antelopev2' },
-              { value: 'buffalo_l', text: 'buffalo_l' },
-              { value: 'buffalo_m', text: 'buffalo_m' },
-              { value: 'buffalo_s', text: 'buffalo_s' },
-            ]}
+          <SettingCombobox
+            title={$t('admin.machine_learning_facial_recognition_model')}
+            subtitle={'Search the supported face models by name or size tier. Manual values are still allowed.'}
+            comboboxPlaceholder={'Search or enter a face model name'}
+            selectedOption={getSelectedModelOption(
+              facialRecognitionModelOptions,
+              configToEdit.machineLearning.facialRecognition.modelName,
+            )}
+            options={facialRecognitionModelOptions}
+            allowCreate={true}
+            defaultFirstOption={true}
             disabled={disabled ||
               !configToEdit.machineLearning.enabled ||
               !configToEdit.machineLearning.facialRecognition.enabled}
+            onSelect={(option) => {
+              configToEdit.machineLearning.facialRecognition.modelName = option?.value ?? '';
+            }}
             isEdited={configToEdit.machineLearning.facialRecognition.modelName !==
               config.machineLearning.facialRecognition.modelName}
           />
@@ -269,22 +290,20 @@
 
           <hr />
 
-          <SettingSelect
-            label={$t('admin.machine_learning_ocr_model')}
-            desc={$t('admin.machine_learning_ocr_model_description')}
-            name="ocr-model"
-            bind:value={configToEdit.machineLearning.ocr.modelName}
-            options={[
-              { text: 'PP-OCRv5_server (Chinese, Japanese and English)', value: 'PP-OCRv5_server' },
-              { text: 'PP-OCRv5_mobile (Chinese, Japanese and English)', value: 'PP-OCRv5_mobile' },
-              { text: 'PP-OCRv5_mobile (English-only)', value: 'EN__PP-OCRv5_mobile' },
-              { text: 'PP-OCRv5_mobile (Greek and English)', value: 'EL__PP-OCRv5_mobile' },
-              { text: 'PP-OCRv5_mobile (Korean and English)', value: 'KOREAN__PP-OCRv5_mobile' },
-              { text: 'PP-OCRv5_mobile (Latin script languages)', value: 'LATIN__PP-OCRv5_mobile' },
-              { text: 'PP-OCRv5_mobile (Russian, Belarusian, Ukrainian and English)', value: 'ESLAV__PP-OCRv5_mobile' },
-              { text: 'PP-OCRv5_mobile (Thai and English)', value: 'TH__PP-OCRv5_mobile' },
-            ]}
-            disabled={disabled || !configToEdit.machineLearning.enabled || !configToEdit.machineLearning.ocr.enabled}
+          <SettingCombobox
+            title={$t('admin.machine_learning_ocr_model')}
+            subtitle={'Search the supported OCR models by name, language pack, or size tier. Manual values are also allowed.'}
+            comboboxPlaceholder={'Search or enter an OCR model name'}
+            selectedOption={getSelectedModelOption(ocrModelOptions, configToEdit.machineLearning.ocr.modelName)}
+            options={ocrModelOptions}
+            allowCreate={true}
+            defaultFirstOption={true}
+            disabled={disabled ||
+              !configToEdit.machineLearning.enabled ||
+              !configToEdit.machineLearning.ocr.enabled}
+            onSelect={(option) => {
+              configToEdit.machineLearning.ocr.modelName = option?.value ?? '';
+            }}
             isEdited={configToEdit.machineLearning.ocr.modelName !== config.machineLearning.ocr.modelName}
           />
 
